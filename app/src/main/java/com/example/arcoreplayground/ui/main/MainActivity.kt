@@ -54,13 +54,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.arcoreplayground.ui.ARSceneWithFrontCamFix
 import com.example.arcoreplayground.ui.theme.ArCorePlaygroundTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.filament.Engine
 import com.google.ar.core.AugmentedFace
@@ -140,10 +140,17 @@ fun MainScreen(
                             )
                         }
                         item {
+                            val context = LocalContext.current
                             val pickerResultListener =
                                 rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                                    val path = getFilePathFromURI(
+                                        context,
+                                        uri ?: return@rememberLauncherForActivityResult
+                                    ) ?: return@rememberLauncherForActivityResult
                                     val placeable = Placeable(
-                                        path = uri?.path ?: return@rememberLauncherForActivityResult
+                                        displayName = path.split(File.separator).lastOrNull()
+                                            ?: "Unknown",
+                                        path = uri.toString()
                                     )
                                     onIntent(MainIntent.AddPlaceable(placeable))
                                 }
@@ -279,17 +286,23 @@ fun MainScreen(
                     }
                     Spacer(Modifier.height(40.dp))
                     val screenshotScope = rememberCoroutineScope()
+                    val context = LocalContext.current
                     IconButton(
                         onClick = {
-                            if (!storagePermissions.status.isGranted) {
-                                storagePermissions.launchPermissionRequest()
-                                return@IconButton
-                            }
+//                            if (!storagePermissions.status.isGranted) {
+//                                storagePermissions.launchPermissionRequest()
+//                                return@IconButton
+//                            }
                             screenshotScope.launch {
                                 val bitmap = sceneView?.screenshot()
-
-                                bitmap.toString()
-                                //TODO save the screenshot
+                                val file = createImageFile()
+                                saveBitmap(
+                                    context = context,
+                                    bitmap = bitmap!!,
+                                    format = Bitmap.CompressFormat.JPEG,
+                                    mimeType = "image/jpeg",
+                                    displayName = file.name
+                                )
                             }
 //                            onIntent(
 //                                TODO()
@@ -347,7 +360,6 @@ fun MainScreen(
     }
 }
 
-@Composable
 private fun createImageFile(): File {
     // Create an image file name
     val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
