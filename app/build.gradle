@@ -23,6 +23,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            minifyEnabled false
+            debuggable true
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -88,7 +92,7 @@ dependencies {
     implementation "androidx.hilt:hilt-navigation-compose:1.0.0"
     implementation "androidx.compose.material:material-icons-extended:1.4.3"
     implementation "com.google.accompanist:accompanist-permissions:0.31.5-beta"
-    implementation 'io.github.sceneview:arsceneview:0.10.0'
+    implementation 'io.github.sceneview:arsceneview:0.10.2'
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
