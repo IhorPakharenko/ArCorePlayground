@@ -9,13 +9,11 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,32 +41,33 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.commit
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.arcoreplayground.ui.ARSceneWithFrontCamFix
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.example.arcoreplayground.R
+import com.example.arcoreplayground.ui.faces.AppArFrontFacingFragment
+import com.example.arcoreplayground.ui.models.AppArBackFacingFragment
 import com.example.arcoreplayground.ui.theme.ArCorePlaygroundTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
-import com.google.android.filament.Engine
-import com.google.ar.core.AugmentedFace
 import com.google.ar.core.CameraConfig.FacingDirection
-import io.github.sceneview.ar.ArSceneView
-import io.github.sceneview.ar.node.ArModelNode
-import io.github.sceneview.ar.node.ArNode
-import io.github.sceneview.math.Position
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.IOException
@@ -76,10 +75,58 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 
-class MainActivity : ComponentActivity() {
+@AndroidEntryPoint
+class MainActivity : FragmentActivity() {
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
+        setContentView(R.layout.activity_main)
+        val composeContainer = findViewById<ComposeView>(R.id.composeContainer)
+
+        val camera = viewModel.uiState.map { it.camera }.distinctUntilChanged()
+        val activeMask = viewModel.uiState
+            .map { it.activeMask }
+            .filterNotNull()
+            .distinctUntilChanged()
+        val activePlaceable = viewModel.uiState
+            .map { it.activePlaceable }
+            .filterNotNull()
+            .distinctUntilChanged()
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    camera.collect { camera ->
+                        val fragment = when (camera) {
+                            FacingDirection.FRONT -> AppArFrontFacingFragment().apply {
+                                launch {
+                                    activeMask.collect {
+                                        setMask(
+                                            modelPath = it.modelPath,
+                                            texturePath = it.texturePath
+                                        )
+                                    }
+                                }
+                            }
+
+                            FacingDirection.BACK -> AppArBackFacingFragment().apply {
+                                launch {
+                                    activePlaceable.collect {
+                                        setModel(it.path)
+                                    }
+                                }
+                            }
+                        }
+                        supportFragmentManager.commit {
+                            replace(R.id.arContainer, fragment)
+                        }
+                    }
+                }
+            }
+        }
+
+        composeContainer.setContent {
             val viewModel: MainViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -90,12 +137,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     uiState: MainUiState,
     onIntent: (MainIntent) -> Unit
 ) {
     BottomSheetScaffold(
+        containerColor = Color.Transparent,
         sheetContent = {
             Text(
                 text = when (uiState.camera) {
@@ -186,81 +235,9 @@ fun MainScreen(
                 }
             }
         },
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+        modifier = Modifier.fillMaxSize()
     ) {
-        var sceneView by remember { mutableStateOf<ArSceneView?>(null) }
-        var engine by remember { mutableStateOf<Engine?>(null) }
-        var nodes by remember { mutableStateOf(listOf<ArNode>()) }
-        var placeholderNode by remember { mutableStateOf<ArModelNode?>(null) }
-
-        sceneView?.let { scene ->
-            SceneRecorder(
-                isRecording = uiState.isRecording,
-                sceneView = scene,
-                getOutputFile = {
-                    val storageDir =
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-                    File.createTempFile(
-                        "VID", /* prefix */
-                        ".webm", /* suffix */
-                        storageDir /* directory */
-                    ).absolutePath
-                },
-                onRecorded = {
-                    onIntent(MainIntent.StopRecording)
-                }
-            )
-        }
-
-        LaunchedEffect(uiState.activePlaceable) {
-            if (placeholderNode?.isAnchored == false) {
-                placeholderNode?.destroy()
-                nodes = nodes - (placeholderNode ?: return@LaunchedEffect)
-            }
-
-            uiState.activePlaceable ?: return@LaunchedEffect
-
-            placeholderNode = ArModelNode(engine!!).apply {
-                isScaleEditable = true
-                loadModelGlbAsync(
-                    glbFileLocation = uiState.activePlaceable.path,
-                    autoAnimate = true,
-                    scaleToUnits = uiState.activePlaceable.scaleToUnits,
-                    centerOrigin = Position(y = -1.0f)
-                )
-            }
-
-            val previewNodes = nodes.filterNot { it.isAnchored }
-            previewNodes.forEach { it.destroy() }
-
-            nodes = nodes.filterNot { node ->
-                node.isAnchored
-            }
-
-            nodes = nodes + (placeholderNode ?: return@LaunchedEffect)
-        }
         Box {
-            key(uiState.camera) { // Completely recreate the Ar Scene on camera change
-                ARSceneWithFrontCamFix(
-                    nodes = nodes,
-                    cameraFacingDirection = uiState.camera,
-                    onCreate = { view ->
-                        sceneView = view
-                        engine = view.engine
-                    },
-                    onSessionCreate = { session ->
-                        //TODO use
-                        session.getAllTrackables(AugmentedFace::class.java)
-                    },
-                    onFrame = {
-                        it.frame
-//                        it.frame.acquireCameraImage()
-                    }
-                )
-            }
-
             Column(Modifier.align(Alignment.TopStart)) {
                 val storagePermissions = rememberPermissionState(
                     android.Manifest.permission.WRITE_EXTERNAL_STORAGE
@@ -294,15 +271,16 @@ fun MainScreen(
 //                                return@IconButton
 //                            }
                             screenshotScope.launch {
-                                val bitmap = sceneView?.screenshot()
-                                val file = createImageFile()
-                                saveBitmap(
-                                    context = context,
-                                    bitmap = bitmap!!,
-                                    format = Bitmap.CompressFormat.JPEG,
-                                    mimeType = "image/jpeg",
-                                    displayName = file.name
-                                )
+                                //TODO
+//                                val bitmap = sceneView?.screenshot()
+//                                val file = createImageFile()
+//                                saveBitmap(
+//                                    context = context,
+//                                    bitmap = bitmap!!,
+//                                    format = Bitmap.CompressFormat.JPEG,
+//                                    mimeType = "image/jpeg",
+//                                    displayName = file.name
+//                                )
                             }
 //                            onIntent(
 //                                TODO()
@@ -342,7 +320,8 @@ fun MainScreen(
             if (uiState.activePlaceable != null) {
                 LargeFloatingActionButton(
                     onClick = {
-                        placeholderNode?.anchor()
+                        //TODO
+//                        placeholderNode?.anchor()
                         onIntent(MainIntent.SetActivePlaceable(null))
                     },
                     modifier = Modifier

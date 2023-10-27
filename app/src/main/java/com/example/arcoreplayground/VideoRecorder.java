@@ -19,15 +19,16 @@ package com.example.arcoreplayground;
 import android.content.res.Configuration;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
-import android.os.Environment;
 import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 
+import com.google.ar.sceneform.SceneView;
+
 import java.io.File;
 import java.io.IOException;
 
-import io.github.sceneview.SceneView;
+//import io.github.sceneview.SceneView;
 
 /**
  * Video Recorder class handles recording the contents of a SceneView. It uses MediaRecorder to
@@ -108,10 +109,8 @@ public class VideoRecorder {
         // Set up Surface for the MediaRecorder
         encoderSurface = mediaRecorder.getSurface();
 
-        //TODO
-//        sceneView.startRecording();
-//        sceneView.startMirroringToSurface(
-//                encoderSurface, 0, 0, videoSize.getWidth(), videoSize.getHeight());
+        sceneView.startMirroringToSurface(
+                encoderSurface, 0, 0, videoSize.getWidth(), videoSize.getHeight());
 
         recordingVideoFlag = true;
     }
@@ -119,9 +118,10 @@ public class VideoRecorder {
     private void buildFilename() {
         if (videoDirectory == null) {
             videoDirectory =
-                    new File(
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                                    + "/Sceneform");
+//                    new File(
+//                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+//                                    + "/Sceneform");
+                    new File(sceneView.getContext().getFilesDir().getAbsolutePath() + File.separator + "Sceneform");
         }
         if (videoBaseName == null || videoBaseName.isEmpty()) {
             videoBaseName = "Sample";
@@ -140,7 +140,8 @@ public class VideoRecorder {
         recordingVideoFlag = false;
 
         if (encoderSurface != null) {
-            //TODO sceneView.stopMirroringToSurface(encoderSurface);
+//            sceneView.stopMirroring(encoderSurface);
+            sceneView.stopMirroringToSurface(encoderSurface);
             encoderSurface = null;
         }
         // Stop recording

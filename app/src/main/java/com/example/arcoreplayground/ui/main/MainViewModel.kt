@@ -19,6 +19,11 @@ class MainViewModel @Inject constructor(
                 path = "models/detailed_monkey.glb",
                 scaleToUnits = (0.75f)
             )
+        ),
+        activeMask = FaceMask(
+            displayName = "Abc",
+            modelPath = "models/fox.glb",
+            texturePath = "textures/freckles.png"
         )
     )
 ) {

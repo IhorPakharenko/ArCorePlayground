@@ -7,7 +7,7 @@ import java.io.File
 
 @Immutable
 data class MainUiState(
-    val camera: CameraConfig.FacingDirection = CameraConfig.FacingDirection.BACK,
+    val camera: CameraConfig.FacingDirection = CameraConfig.FacingDirection.FRONT,
     val isRecording: Boolean = false,
     val masks: List<FaceMask> = emptyList(),
     val activeMask: FaceMask? = null,
@@ -15,10 +15,11 @@ data class MainUiState(
     val activePlaceable: Placeable? = null,
 )
 
-sealed class FaceMask {
-    object Default : FaceMask()
-    data class Custom(val path: String) : FaceMask()
-}
+data class FaceMask(
+    val displayName: String,
+    val modelPath: String,
+    val texturePath: String?
+)
 
 data class Placeable(
     val displayName: String,
