@@ -2,12 +2,25 @@ package com.example.arcoreplayground.ui.main
 
 import com.example.arcoreplayground.MviViewModel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import javax.inject.Inject
 
 class MainViewModel @Inject constructor(
 ) : MviViewModel<MainUiState, MainPartialState, MainEvent, MainIntent>(
     MainUiState(
+        masks = listOf(
+            FaceMask(
+                displayName = "Fox",
+                modelPath = "models/fox.glb",
+                texturePath = "textures/freckles.png"
+            ),
+            FaceMask(
+                displayName = "Human",
+                modelPath = "models/face.glb",
+                texturePath = "textures/face.png"
+            ),
+        ),
         placeables = listOf(
             Placeable(
                 displayName = "Panda",
@@ -18,12 +31,7 @@ class MainViewModel @Inject constructor(
                 displayName = "Monkey",
                 path = "models/detailed_monkey.glb",
                 scaleToUnits = (0.75f)
-            )
-        ),
-        activeMask = FaceMask(
-            displayName = "Abc",
-            modelPath = "models/fox.glb",
-            texturePath = "textures/freckles.png"
+            ),
         )
     )
 ) {
@@ -37,6 +45,10 @@ class MainViewModel @Inject constructor(
         is MainIntent.SwitchCamera -> flowOf(MainPartialState.CameraSwitched(intent.camera))
         is MainIntent.SetActiveMask -> flowOf(MainPartialState.ActiveMaskSet(intent.mask))
         is MainIntent.SetActivePlaceable -> flowOf(MainPartialState.ActivePlaceableSet(intent.placeable))
+        MainIntent.TakeScreenshot -> {
+            publishEvent(MainEvent.TakeScreenshot)
+            emptyFlow()
+        }
     }
 
     override fun reduceUiState(

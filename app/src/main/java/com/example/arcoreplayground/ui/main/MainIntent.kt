@@ -6,6 +6,7 @@ sealed class MainIntent {
     data class SwitchCamera(val camera: CameraConfig.FacingDirection) : MainIntent()
     object StartRecording : MainIntent()
     object StopRecording : MainIntent()
+    object TakeScreenshot : MainIntent()
     data class AddFaceMask(val mask: FaceMask) : MainIntent()
     data class RemoveFaceMask(val mask: FaceMask) : MainIntent()
     data class SetActiveMask(val mask: FaceMask) : MainIntent()

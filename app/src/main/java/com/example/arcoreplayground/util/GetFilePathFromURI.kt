@@ -1,4 +1,4 @@
-package com.example.arcoreplayground.ui.main
+package com.example.arcoreplayground.util
 
 import android.content.ContentUris
 import android.content.Context

@@ -11,8 +11,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.arcoreplayground.VideoRecorder
-import com.example.arcoreplayground.ui.main.saveBitmap
-import com.example.arcoreplayground.ui.main.screenshot
+import com.example.arcoreplayground.util.saveBitmap
+import com.example.arcoreplayground.util.screenshot
 import com.google.ar.core.Config
 import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
@@ -101,7 +101,15 @@ class AppArBackFacingFragment : ArFragment() {
             return@runCatching saveBitmap(requireContext(), bitmap)
         }
 
-    fun toggleRecord() {
-        recorder.onToggleRecord()
+    fun startRecord() {
+        if (!recorder.isRecording) {
+            recorder.onToggleRecord()
+        }
+    }
+
+    fun stopRecord() {
+        if (recorder.isRecording) {
+            recorder.onToggleRecord()
+        }
     }
 }

@@ -9,8 +9,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.arcoreplayground.VideoRecorder
-import com.example.arcoreplayground.ui.main.saveBitmap
-import com.example.arcoreplayground.ui.main.screenshot
+import com.example.arcoreplayground.util.saveBitmap
+import com.example.arcoreplayground.util.screenshot
 import com.google.ar.core.AugmentedFace
 import com.google.ar.core.TrackingState
 import com.google.ar.sceneform.rendering.ModelRenderable
@@ -126,12 +126,15 @@ class AppArFrontFacingFragment : ArFrontFacingFragment() {
             return@runCatching saveBitmap(requireContext(), bitmap)
         }
 
-    fun toggleRecord() {
-        recorder.onToggleRecord()
+    fun startRecord() {
+        if (!recorder.isRecording) {
+            recorder.onToggleRecord()
+        }
     }
 
-    object Keys {
-        const val MODEL_PATH = "MODEL_PATH"
-        const val TEXTURE_PATH = "TEXTURE_PATH"
+    fun stopRecord() {
+        if (recorder.isRecording) {
+            recorder.onToggleRecord()
+        }
     }
 }
