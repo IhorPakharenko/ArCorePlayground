@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.media.CamcorderProfile
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -18,9 +19,9 @@ import com.google.ar.sceneform.rendering.Renderable
 import com.google.ar.sceneform.rendering.Texture
 import com.google.ar.sceneform.ux.ArFrontFacingFragment
 import com.google.ar.sceneform.ux.AugmentedFaceNode
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 
@@ -31,8 +32,7 @@ class AppArFrontFacingFragment : ArFrontFacingFragment() {
     private val faceNodes = mutableMapOf<AugmentedFace, AugmentedFaceNode>()
     private val recorder: VideoRecorder = VideoRecorder()
 
-    private var modelPath = MutableStateFlow<String?>(null)
-    private var texturePath = MutableStateFlow<String?>(null)
+    private var setMaskJob: Job? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -57,15 +57,8 @@ class AppArFrontFacingFragment : ArFrontFacingFragment() {
                     if (existingFaceNode != null) return@setOnAugmentedFaceUpdateListener
 
                     val faceNode = AugmentedFaceNode(augmentedFace)
-
-                    val modelInstance = faceNode.setFaceRegionsRenderable(faceModel)
-                    modelInstance.isShadowCaster = false
-                    modelInstance.isShadowReceiver = true
-
-                    faceNode.faceMeshTexture = faceTexture
-
+                    setMask(faceNode)
                     arSceneView.scene.addChild(faceNode)
-
                     faceNodes[augmentedFace] = faceNode
                 }
 
@@ -76,51 +69,57 @@ class AppArFrontFacingFragment : ArFrontFacingFragment() {
                     faceNodes -= augmentedFace
                 }
 
-                TrackingState.PAUSED -> Unit
-            }
-        }
-
-        lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.CREATED) {
-                launch {
-                    texturePath.mapLatest { path ->
-                        Texture.builder()
-                            .setSource(context, Uri.parse(path ?: return@mapLatest null))
-                            .setUsage(Texture.Usage.COLOR_MAP)
-                            .build()
-                            .await()
-                    }.catch {
-
-                    }.collect {
-                        faceTexture = it
-                    }
-                }
-                launch {
-                    modelPath.mapLatest { path ->
-                        ModelRenderable.builder()
-                            .setSource(context, Uri.parse(path))
-                            .setIsFilamentGltf(true)
-                            .build()
-                            .await()
-                    }.catch {
-
-                    }.collect {
-                        faceModel = it
-                    }
-                }
+                TrackingState.PAUSED -> {}
             }
         }
     }
 
     fun setMask(modelPath: String, texturePath: String? = null) {
-        this.modelPath.value = modelPath
-        this.texturePath.value = texturePath
+        val exceptionHandler = CoroutineExceptionHandler { _, exception ->
+            Log.e(ArFrontFacingFragment::class.simpleName, "Setting mask failed", exception)
+        }
+        setMaskJob?.cancel()
+        setMaskJob = lifecycleScope.launch(exceptionHandler) {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                faceModel = async {
+                    ModelRenderable.builder()
+                        .setSource(context, Uri.parse(modelPath))
+                        .setIsFilamentGltf(true)
+                        .build()
+                        .await()
+                }.await()
+
+                faceTexture = if (texturePath != null) {
+                    async {
+                        Texture.builder()
+                            .setSource(context, Uri.parse(texturePath))
+                            .setUsage(Texture.Usage.COLOR_MAP)
+                            .build()
+                            .await()
+                    }.await()
+                } else {
+                    null
+                }
+
+                faceNodes.forEach { (_, faceNode) ->
+                    setMask(faceNode)
+                }
+            }
+        }
+    }
+
+    private fun setMask(faceNode: AugmentedFaceNode) {
+        faceNode.setFaceRegionsRenderable(faceModel).apply {
+            isShadowCaster = false
+            isShadowReceiver = true
+        }
+        faceNode.faceMeshTexture = faceTexture
     }
 
     suspend fun takeScreenshot(): Result<Uri> =
         runCatching {
             assert(lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
-                "Can't take a screenshot if before the AR view is created"
+                "Can't take a screenshot before the AR view is created"
             }
             val bitmap = arSceneView.screenshot()
             return@runCatching saveBitmap(requireContext(), bitmap)
