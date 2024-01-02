@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
+import androidx.core.os.bundleOf
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -20,6 +21,7 @@ import com.google.ar.sceneform.AnchorNode
 import com.google.ar.sceneform.rendering.ModelRenderable
 import com.google.ar.sceneform.rendering.Renderable
 import com.google.ar.sceneform.ux.ArFragment
+import com.google.ar.sceneform.ux.BaseArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
@@ -35,6 +37,9 @@ class AppArBackFacingFragment : ArFragment() {
     private var modelPath = MutableStateFlow<String?>(null)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        arguments = (arguments ?: bundleOf()).apply {
+            putBoolean(BaseArFragment.ARGUMENT_FULLSCREEN, false)
+        }
         super.onViewCreated(view, savedInstanceState)
 
         recorder.setSceneView(arSceneView)

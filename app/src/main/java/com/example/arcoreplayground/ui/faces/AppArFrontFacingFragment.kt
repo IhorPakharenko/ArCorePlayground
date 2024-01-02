@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.core.os.bundleOf
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -19,6 +20,7 @@ import com.google.ar.sceneform.rendering.Renderable
 import com.google.ar.sceneform.rendering.Texture
 import com.google.ar.sceneform.ux.ArFrontFacingFragment
 import com.google.ar.sceneform.ux.AugmentedFaceNode
+import com.google.ar.sceneform.ux.BaseArFragment
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -35,6 +37,9 @@ class AppArFrontFacingFragment : ArFrontFacingFragment() {
     private var setMaskJob: Job? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        arguments = (arguments ?: bundleOf()).apply {
+            putBoolean(BaseArFragment.ARGUMENT_FULLSCREEN, false)
+        }
         super.onViewCreated(view, savedInstanceState)
 
         // This is important to make sure that the camera stream renders first so that

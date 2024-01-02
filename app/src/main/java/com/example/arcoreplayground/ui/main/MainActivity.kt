@@ -4,10 +4,12 @@ package com.example.arcoreplayground.ui.main
 
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,9 +18,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.BottomSheetScaffold
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Done
@@ -26,7 +32,6 @@ import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material.icons.filled.Screenshot
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
-import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFloatingActionButton
@@ -72,6 +77,8 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        enableEdgeToEdge()
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -159,14 +166,40 @@ class MainActivity : FragmentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun MainScreen(
     uiState: MainUiState,
     onIntent: (MainIntent) -> Unit,
-) {
+) = Box(Modifier.fillMaxSize()) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .navigationBarsPadding()
+            // Draw behind the bottom sheet to at least
+            // hide camera image during janky sheet overscroll
+            .height(40.dp)
+            .align(Alignment.BottomCenter)
+    )
     BottomSheetScaffold(
-        containerColor = Color.Transparent,
+        backgroundColor = Color.Transparent,
+        floatingActionButton = {
+            if (uiState.activePlaceable != null) {
+                LargeFloatingActionButton(
+                    onClick = {
+                        onIntent(MainIntent.SetActivePlaceable(null))
+                    },
+                    modifier = Modifier
+                ) {
+                    Image(
+                        imageVector = Icons.Default.Done,
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(LocalContentColor.current)
+                    )
+                }
+            }
+        },
         sheetContent = {
             Text(
                 text = when (uiState.camera) {
@@ -186,9 +219,17 @@ fun MainScreen(
                 }
             }
         },
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding()
     ) {
-        CameraButtons(uiState = uiState, onIntent = onIntent, modifier = Modifier.padding(it))
+        CameraButtons(
+            uiState = uiState,
+            onIntent = onIntent,
+            modifier = Modifier
+                .padding(it)
+                .safeDrawingPadding()
+        )
     }
 }
 
@@ -326,7 +367,8 @@ private fun CameraButtons(
             ) {
                 Image(
                     imageVector = Icons.Filled.FlipCameraAndroid,
-                    contentDescription = null
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(LocalContentColor.current)
                 )
             }
             Spacer(Modifier.height(40.dp))
@@ -363,24 +405,6 @@ private fun CameraButtons(
                     colorFilter = ColorFilter.tint(LocalContentColor.current)
                 )
             }
-        }
-    }
-    if (uiState.activePlaceable != null) {
-        LargeFloatingActionButton(
-            onClick = {
-                //TODO
-//                        placeholderNode?.anchor()
-                onIntent(MainIntent.SetActivePlaceable(null))
-            },
-            modifier = Modifier
-                .padding(horizontal = 24.dp, vertical = 40.dp)
-                .align(Alignment.BottomEnd)
-        ) {
-            Image(
-                imageVector = Icons.Default.Done,
-                contentDescription = null,
-                colorFilter = ColorFilter.tint(LocalContentColor.current)
-            )
         }
     }
 }
