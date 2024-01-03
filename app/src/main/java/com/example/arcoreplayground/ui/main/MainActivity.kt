@@ -60,7 +60,7 @@ import com.example.arcoreplayground.ui.faces.AppArFrontFacingFragment
 import com.example.arcoreplayground.ui.models.AppArBackFacingFragment
 import com.example.arcoreplayground.ui.theme.ArCorePlaygroundTheme
 import com.example.arcoreplayground.util.getFilePathFromURI
-import com.example.arcoreplayground.util.mapLikeLifeData
+import com.example.arcoreplayground.util.mapLikeLiveData
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.ar.core.CameraConfig.FacingDirection
 import dagger.hilt.android.AndroidEntryPoint
@@ -83,10 +83,10 @@ class MainActivity : FragmentActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val camera = viewModel.uiState.mapLikeLifeData { it.camera }
-        val activeMask = viewModel.uiState.mapLikeLifeData { it.activeMask }
-        val activePlaceable = viewModel.uiState.mapLikeLifeData { it.activePlaceable }
-        val isRecording = viewModel.uiState.mapLikeLifeData { it.isRecording }
+        val camera = viewModel.uiState.mapLikeLiveData { it.camera }
+        val activeMask = viewModel.uiState.mapLikeLiveData { it.activeMask }
+        val activePlaceable = viewModel.uiState.mapLikeLiveData { it.activePlaceable }
+        val isRecording = viewModel.uiState.mapLikeLiveData { it.isRecording }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
